@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Trash Sorter</title>
+
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}"">
+
+    <!-- Bootstrap 4 CDN -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet" />
+    <style>
+        /* Background image */
+        body {
+            background-image: url('https://mildredbrowncenter.org/wp-content/uploads/2021/05/agung-parameswara_Bali-Trash_11-scaled-1.jpg');
+            background-size: cover; /* Ensures the image covers the whole page */
+            background-position: center center; /* Centers the background */
+            background-repeat: no-repeat; /* Ensures the image does not repeat */
+            color: white;
+            font-family: 'Arial', sans-serif;
+            min-height: 100vh; /* Ensure the body covers the full viewport height */
+        }
+
+        .container {
+            background-color: rgba(0, 0, 0, 0.6); /* Dark background for contrast */
+            padding: 30px;
+            border-radius: 10px;
+            margin-top: 50px;
+            max-width: 800px;
+        }
+
+        h1 {
+            font-size: 3rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .btn {
+            margin-top: 20px;
+            font-size: 1.2rem;
+            padding: 12px 30px;
+        }
+
+        #result {
+            margin-top: 20px;
+            white-space: pre-wrap;
+            border: 1px solid #ccc;
+            padding: 20px;
+            height: 200px;
+            overflow: auto;
+            background-color: rgba(255, 255, 255, 0.8); /* Light background for readability */
+            color: black;
+            border-radius: 10px;
+            position: relative; /* To position the spinner inside this container */
+        }
+
+        #image-preview {
+            max-width: 100%;
+            margin-top: 20px;
+            border-radius: 10px;
+        }
+
+        .row {
+            margin-top: 20px;
+        }
+
+        .col-auto {
+            display: flex;
+            justify-content: center;
+        }
+
+        .col-auto button {
+            width: 200px;
+        }
+
+        /* Fancy hover effect for buttons */
+        .btn:hover {
+            background-color: #ff7f50;
+            transition: 0.3s;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-primary {
+            background-color: #007bff;
+        }
+
+        .btn-success {
+            background-color: #28a745;
+        }
+
+        /* Spinner inside the result area */
+        #loading-spinner {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        /* Footer styling (remove footer background color) */
+        footer {
+            text-align: center;
+            padding: 10px;
+            margin-top: 20px; /* Add space before the footer */
+        }
+
+        /* Logo and brand styling in footer */
+        #logo-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        #logo-container img {
+            height: 126px; /* Adjust the size of the logo */
+            margin-right: 15px;
+        }
+
+        #brand-name {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #ffffff;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>AI Trash Sorter</h1>
+
+    <!-- Buttons for uploading or capturing an image -->
+    <div class="row justify-content-center">
+        <div class="col-auto">
+            <button class="btn btn-primary" onclick="openFileInput()">Upload Image</button>
+        </div>
+    </div>
+
+    <!-- Input for file upload -->
+    <input type="file" id="file-input" accept="image/*" style="display:none" onchange="uploadImage()" />
+
+    <!-- Camera capture using HTML5 -->
+    <video id="video" class="d-none" width="320" height="240" autoplay></video>
+    <canvas id="canvas" class="d-none"></canvas>
+
+    <!-- Preview of the image -->
+    <img id="image-preview" class="d-none" />
+
+    <!-- Result area -->
+    <div id="result">
+        <!-- Loading spinner inside the result area -->
+        <div id="loading-spinner">
+            <div class="spinner-border text-light" role="status">
+                <span class="sr-only">Loading...</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap JS and dependencies -->
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+<script>
+    // Function to trigger file input
+    function openFileInput() {
+        document.getElementById('file-input').click();
+    }
+
+    // Upload the image to the server
+    function uploadImage() {
+        var fileInput = document.getElementById('file-input');
+        var file = fileInput.files[0];
+        if (file) {
+            var formData = new FormData();
+            formData.append('image', file);
+
+            // Display image preview
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                document.getElementById('image-preview').src = e.target.result;
+                document.getElementById('image-preview').classList.remove('d-none');
+            };
+            reader.readAsDataURL(file);
+
+            // Show loading spinner
+            document.getElementById('loading-spinner').style.display = 'block';
+
+            // Upload image to Flask server
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            }).then(response => response.json())
+              .then(data => {
+                  document.getElementById('result').textContent = data.result;
+                  // Hide loading spinner
+                  document.getElementById('loading-spinner').style.display = 'none';
+              });
+        }
+    }
+
+    // Open the camera and capture an image
+    function openCamera() {
+        var video = document.getElementById('video');
+        var canvas = document.getElementById('canvas');
+        var context = canvas.getContext('2d');
+
+        // Show the video stream
+        video.classList.remove('d-none');
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(function (stream) {
+                video.srcObject = stream;
+            });
+
+        // Capture image after 2 seconds
+        setTimeout(function () {
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            var imageData = canvas.toDataURL('image/jpeg');
+
+            // Show loading spinner
+            document.getElementById('loading-spinner').style.display = 'block';
+
+            // Send captured image to Flask server
+            fetch('/capture', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: 'imageData=' + encodeURIComponent(imageData)
+            }).then(response => response.json())
+              .then(data => {
+                  document.getElementById('result').textContent = data.result;
+                  // Hide loading spinner
+                  document.getElementById('loading-spinner').style.display = 'none';
+              });
+
+            // Stop the video stream
+            video.srcObject.getTracks().forEach(track => track.stop());
+            video.classList.add('d-none');
+        }, 2000); // Capture after 2 seconds
+    }
+</script>
+
+<!-- Footer (no background color) -->
+<footer>
+    <div id="logo-container">
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="TrashAI Logo" />
+        <div id="brand-name">TrashAI</div>
+    </div>
+</footer>
+
+</body>
+</html>

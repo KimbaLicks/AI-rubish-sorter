@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Capture & Llama32PI</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        button {
+            margin: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+        }
+        #result {
+            margin-top: 20px;
+            white-space: pre-wrap;
+            border: 1px solid #ccc;
+            padding: 10px;
+            width: 100%;
+            height: 200px;
+            overflow: auto;
+        }
+        #image-preview {
+            margin-top: 20px;
+            max-width: 200px;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Image Capture & Llama32PI</h1>
+
+<!-- Buttons for uploading or capturing an image -->
+<button onclick="openFileInput()">Upload Image</button>
+<button onclick="openCamera()">Capture Image</button>
+
+<!-- Input for file upload -->
+<input type="file" id="file-input" accept="image/*" style="display:none" onchange="uploadImage()" />
+
+<!-- Camera capture using HTML5 -->
+<video id="video" width="320" height="240" autoplay style="display:none"></video>
+<canvas id="canvas" style="display:none"></canvas>
+
+<!-- Preview of the image -->
+<img id="image-preview" style="display:none" />
+
+<!-- Result area -->
+<div id="result"></div>
+
+<script>
+    function openFileInput() {
+        document.getElementById('file-input').click();
+    }
+
+    function uploadImage() {
+        var fileInput = document.getElementById('file-input');
+        var file = fileInput.files[0];
+        if (file) {
+            var formData = new FormData();
+            formData.append('image', file);
+
+            // Display image preview
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                document.getElementById('image-preview').src = e.target.result;
+                document.getElementById('image-preview').style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+
+            // Upload image to Flask server
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            }).then(response => response.json())
+              .then(data => {
+                  document.getElementById('result').textContent = data.result;
+              });
+        }
+    }
+
+    function openCamera() {
+        var video = document.getElementById('video');
+        var canvas = document.getElementById('canvas');
+        var context = canvas.getContext('2d');
+
+        // Show the video stream
+        video.style.display = 'block';
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(function (stream) {
+                video.srcObject = stream;
+            });
+
+        // Capture image after 2 seconds
+        setTimeout(function () {
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            var imageData = canvas.toDataURL('image/jpeg');
+
+            // Send captured image to Flask server
+            fetch('/capture', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: 'imageData=' + encodeURIComponent(imageData)
+            }).then(response => response.json())
+              .then(data => {
+                  document.getElementById('result').textContent = data.result;
+              });
+
+            // Stop the video stream
+            video.srcObject.getTracks().forEach(track => track.stop());
+            video.style.display = 'none';
+        }, 2000); // Capture after 2 seconds
+    }
+</script>
+
+</body>
+</html>
+ 
